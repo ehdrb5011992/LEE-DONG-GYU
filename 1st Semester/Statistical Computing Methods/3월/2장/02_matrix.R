@@ -1,0 +1,63 @@
+rm(list = ls())
+
+n <- 100
+X <- cbind(rep(1, n), 1:n)
+X
+
+w <- sqrt(1:n)
+w
+
+# weight matrix
+W <- diag(w)
+W
+
+# Let's compute {X' inv(W) X}
+system.time(xwx1 <- t(X) %*% solve(W) %*% X)
+xwx1
+
+system.time(xwx2 <- t(X) %*% diag(1/w) %*% X)
+xwx2
+
+system.time(xwx3 <- t(X) %*% (X/w))
+xwx3
+
+system.time(xwx4 <- crossprod(X, X/w))
+xwx4
+
+##########################
+# cholesky decomposition #
+##########################
+A <- matrix(c(
+  4,2,2,4,
+  2,5,7,0,
+  2,7,19,11,
+  4,0,11,25), 4, 4, byrow = T)
+A
+
+L <- t(chol(A))
+L
+
+# compute t(x) %*% inv(A) %*% x
+x <- 1:4
+
+# naive
+xAx1 <- x %*% solve(A) %*% x
+xAx1
+
+# use Cholesky
+y <- forwardsolve(L, x)
+xAx2 <- t(y) %*% y
+xAx2
+
+# compute t(B) %*% inv(A) %*% B
+B <- matrix(12:1, 4, 3)
+
+# naive
+BXB1 <- t(B) %*% solve(A) %*% B
+BXB1
+
+# use Cholesky
+C <- forwardsolve(L, B)
+BXB2 <- t(C) %*% C
+BXB2
+

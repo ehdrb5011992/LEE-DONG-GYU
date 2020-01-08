@@ -1,0 +1,19 @@
+# Gaussian Elmination
+ge <- function(A) {
+  B <- diag(n)
+  for (k in 1:(n-1))  {
+    M <- diag(n)
+    M[(k+1):n,k] <- -A[(k+1):n,k]/A[k,k]     # compute M
+    A <- M %*% A  # update A
+    B <- M %*% B  # update B
+  }
+return(B)  
+}
+
+# Solving a system of linear equations via GE. 
+solve.ge <- function(A, b) {
+  B <- ge(A)
+  x <- backsolve(B %*% A, B %*% b)
+return(x)
+}
+

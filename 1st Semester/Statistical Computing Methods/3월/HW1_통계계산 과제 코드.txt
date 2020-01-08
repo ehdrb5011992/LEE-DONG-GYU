@@ -1,0 +1,81 @@
+1. 피버팅 적용 해구하기.
+
+ge <- function(A) {
+  
+  n <- nrow(A)
+  B <- diag(n)
+  
+  for (k in 1:(n-1))  {
+    
+    P <- P_sub <- diag(n)
+    M <- diag(n)
+    
+    x<-which.max(abs(A[,k])[k:n]) + (k-1) # k번째 열에서 k번째부터 n번째의 행중 가장 큰 원소를 갖는 행.
+                                          # cf) 원소가 같을 경우 축척비례로 피버팅을 할 수 있다. 
+    P[k,] <- P_sub[x,] 
+    P[x,] <- P_sub[k,] 
+    A <- P %*% A
+    B <- P %*% B
+    
+    M[(k+1):n,k] <- -A[(k+1):n,k]/A[k,k]     # compute M
+    
+    A <- M %*% A  # update A
+    B <- M %*% B  # update B
+    
+  }
+  return(B)  
+}
+
+solve.ge <- function(A, b) {
+  B <- ge(A)
+  x <- backsolve(B %*% A, B %*% b)
+  return(x)
+}
+
+A <- matrix(c(1,1/2,0,1,2,1,2,-1,-1,0,-1/2,3/2,0,1,3/2,0),4,4)
+b <- c(1/2,1,3/2,2)
+
+x1 <- solve(A) %*% b # 하지말자.
+x2 <- solve.ge(A,b)  # 피버팅적용.
+cbind(x1,x2) #비교. 
+
+ge(A) # permutation matrix 확인.
+
+
+#--------------------------------------------------#
+
+
+2. 촐레스키분해 코드
+
+rm(list=ls())
+
+cholesky <- function(A) {
+  
+  n <- ncol(A)
+  L <- matrix(0,n,n)
+  L[1,1] <- sqrt(A[1,1])
+    
+  for (i in 2:n) {
+    
+    l_k <- forwardsolve(L[1:(i-1),1:(i-1)],A[1:(i-1),i]) #행렬 L의 맨 오른쪽 열벡터들을 구함.(맨아래 원소빼고)
+    l_kk <- sqrt(A[i,i]-crossprod(l_k,l_k) ) #행렬 L의 맨 오른쪽 맨 아래 원소 한개만을 계산.
+
+    L[i,(1:i-1)] <- l_k #메모리 절약을 위해 위의 두코드와 합칠 수 있음. 다만 보기쉽게 하기위해 나눔.
+    L[i,i] <- l_kk #역시 마찬가지임.
+        
+  }
+  
+  return(L)
+  
+}
+?crossprod
+
+
+A <- matrix(c(1,2,3,4,2,13,21,29,3,21,70,95,4,29,95,229),4,4)
+
+l_1<-cholesky(A) # 내가만든 함수.
+l_2<-t(chol(A))  # R의 촐레스키분해 함수. 
+
+list(l_1,l_2) #실제 촐레스키분해와 비교. 같다.
+
+
