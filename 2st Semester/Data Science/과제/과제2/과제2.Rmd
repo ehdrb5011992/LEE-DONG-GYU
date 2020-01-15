@@ -1,0 +1,453 @@
+---
+title: "HW2 : 석사 2학기 이동규"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+####  **Library**
+
+```{r message=FALSE}
+#install.packages("rmarkdown")
+#install.packages("knitr")
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(nycflights13)
+library(ggthemes) # using in ggplot
+library(grid) # can write outside of plot
+library(lubridate) # time manipulation package
+library(agricolae) # using in scheffe.test
+```
+
+#### **1-1. What month had the highest proportion of cancelled flights?**  
+  
+```{r}
+str(flights)
+sum(is.na(flights)) # The data set has "NA"
+flights$month<-as.factor(flights$month)
+dat1_1_1 <- flights  %>% mutate(cancelled_or_not = is.na(dep_time) & is.na(arr_time) )  %>%  # cancelled = TRUE
+  select(month,air_time,cancelled_or_not)  %>% group_by(month)
+```
+
+출발시간과 도착시간이 모두 missing인 데이터가 비행기가 취소된 데이터이다.  
+
+
+```{r}
+proportion <- summarize(dat1_1_1 , prop=mean(cancelled_or_not))
+proportion
+proportion[which.max(proportion$prop),] # the highest proportion of cancelled flights
+```
+
+#### **1-2-1. What plane (specified by the tailnum variable) traveled the most times from NY city airports in 2013?** 
+
+```{r}
+#the most times traveled plane
+real_flights = flights %>% filter( !(is.na(dep_time) & is.na(arr_time)))
+dat1_2_1 <- real_flights %>% select(tailnum) %>% group_by(tailnum) %>% summarize( count = n() ) %>% filter(!is.na(tailnum))
+dat1_2_1[which.max(dat1_2_1$count),]
+```
+
+N725MQ 기종이 NY city를 546번 비행했다. 기본 데이터는 취소된 항공편은 제외하고 생각해야한다.  
+
+#### **1-2-2. Plot the number of trips per week over the year.**
+
+```{r}
+dat1_2_2 <- temp <- real_flights %>% select(time_hour,tailnum) %>% mutate( week =  as.factor(yday(time_hour) %/% 7  + 1 ))  %>% 
+  complete(tailnum,week)%>% filter(tailnum=="N725MQ")  %>% group_by(week) %>% summarize( count = n() ) 
+dat1_2_2$count <- ifelse(temp$count==1 , 0,temp$count) 
+dat1_2_2[which(dat1_2_2$count==max(dat1_2_2$count)),]
+```
+
+8,29주차에 NY city를 최대로 비행했고, 그 횟수는 18번이다.
+
+```{r}
+#plot
+dat1_2_2 %>% ggplot() + 
+  
+  #data
+  geom_bar(aes(x=week,y=count,fill=week),stat='identity',show.legend = FALSE) +
+  
+  #title & caption
+  ggtitle(" The Number of Trips per Week over The Year" ) + 
+  labs(caption = "Made by Lee Dong Gyu" ) +
+  scale_x_discrete(breaks = seq(0,53,3) ,labels = seq(0,53,3))+
+  
+  #text & arrow
+  annotate('segment',x=8,xend=10, y=18 , yend=18, arrow=arrow(ends='first',angle=20),size=1) +
+  annotate('segment',x=29,xend=27, y=18 , yend=18, arrow=arrow(ends='first',angle=20),size=1) +
+  annotate('text',label = "Maximum week : 8,19 / Count : 18",x=18.5,y=18,size=3,fontface =1) +
+  
+  #theme
+  theme_fivethirtyeight() +
+  
+  theme(plot.title = element_text(face = "bold", size =20)) +
+  theme(plot.caption = element_text(face="italic")) +
+  theme(axis.text.y = element_text( face = "bold")) +
+  
+  geom_hline(yintercept=0 , color = '#545454',size=1) 
+```
+
+아래는 추가로 공부한 내용이다. 모든 기종들이 주별 NY city를 비행한 횟수이다.
+
+```{r}
+######################### Bonus #########################
+
+dat1_2_2_bonus <- real_flights %>% select(time_hour,tailnum) %>% mutate( week =  as.factor(yday(time_hour) %/% 7  + 1 )) %>% 
+  group_by(week) %>% summarize( count = n() ) 
+
+dat1_2_2_bonus[which.max(dat1_2_2_bonus$count),]
+```
+
+29주차에 NY city를 최대로 비행했고, 그 횟수는 6636번이다.
+
+```{r}
+#plot 
+dat1_2_2_bonus %>% ggplot() + 
+  
+  #data
+  geom_bar(aes(x=week,y=count,fill=week),stat='identity',show.legend = FALSE) +
+  
+  #title & caption
+  ggtitle(" The Number of Trips per Week over The Year(Total)" ) + 
+  labs(caption = "Made by Lee Dong Gyu" ) +
+  scale_x_discrete(breaks = seq(0,53,3) ,labels = seq(0,53,3))+
+  
+  #text & arrow
+  annotate('segment',x=29,xend=31, y=6636 , yend=6636, arrow=arrow(ends='first',angle=20),size=1) +
+  annotate('text',label = "Maximum week : 29 , Count : 6636",x=42,y=6636,size=4,fontface =1) +
+
+  #theme
+  theme_fivethirtyeight() +
+
+  theme(plot.title = element_text(face = "bold", size =15)) +
+  theme(plot.caption = element_text(face="italic")) +
+  theme(axis.text.y = element_text( face = "bold")) +
+  
+  geom_hline(yintercept=0 , color = '#545454',size=1) 
+
+######################### Bonus End #########################
+```
+
+#### **2-1-1. What is the oldest plane (specified by tailnum variable) that flew from NY City airports in 2013?**
+
+```{r}
+# The oldest plane
+dat2_1_1 <- planes %>% select(tailnum,year) %>% filter(!is.na(year))
+dat2_1_1[with(dat2_1_1,which(year == min(year))),]
+```
+
+가장 오래된 비행기 기종은 N381AA 이고, 1956년에 만들어졌다.  
+
+
+#### **2-1-2. How many airplanes that flew from NY City are included into the plane data?**
+
+```{r}
+# How many airplanes are included into the plane data
+planes_tailnum <- planes %>% select(tailnum)
+dat2_1_2 <- flights %>% semi_join(planes_tailnum)
+# eqaul to this : dat2_1_2 <- flights %>% filter(tailnum %in% only_tailnum$tailnum)
+length(unique(dat2_1_2$tailnum)) # All of the plane data's planes are included in the flights data
+```
+
+NY city를 비행한 비행기 중, 3322대의 비행기가 plane data set에 포함되어 있다.  
+
+#### **2-2-1. How many planes have a missing date of manufactures?**
+
+```{r}
+# How many planes have a missing date of manufactures?
+dat2_2_1 <- planes %>% select(year) %>% filter(is.na(year))
+nrow(dat2_2_1)
+```
+
+70대의 비행기가 제조사가 missing data로 남아있다.  
+
+#### **2-2-2. What are the five most common manufacturers?**
+
+```{r}
+# What are the five most common manufacturers?
+dat2_2_2 <- planes %>% select(manufacturer) %>% group_by(manufacturer) %>% summarize(count=n()) %>% arrange(desc(count))
+dat2_2_2 %>%  head(5)
+```
+
+상위 5개는 위와 같다.  
+
+#### **2-2-3. Has the distribution of manufacturer changed over time as reflected by the airplanes flying from NYC in 2013?**
+
+```{r}
+# Has the distribution of manufacturer changed?
+count_top_7_planes<- dat2_2_2 %>%  head(7) 
+count_the_other_sum_planes<- dat2_2_2[8:nrow(dat2_2_2),] %>% select(count) %>% sum() 
+other1 <- tibble(manufacturer = "OTHER" , count=count_the_other_sum_planes)
+dat2_2_3_planes <- count_top_7_planes %>%  rbind(other1) %>% mutate(prop = round(count / sum(count) , 2)) 
+
+
+flights_planes_tailnum <- flights %>% inner_join(planes,by='tailnum')
+flights_manufacturer_count <- flights_planes_tailnum %>% select(manufacturer) %>% group_by(manufacturer) %>% summarize(count=n()) %>% arrange(desc(count))
+count_top_7_flights <- flights_manufacturer_count %>% head(7)
+count_the_other_sum_flights <- flights_manufacturer_count[8:nrow(flights_manufacturer_count),] %>% select(count) %>% sum()
+other2 <- tibble(manufacturer = "OTHER" , count=count_the_other_sum_flights)
+dat2_2_3_flights <- count_top_7_flights %>%  rbind(other2) %>% mutate(prop = round(count / sum(count) , 2))
+
+
+temp <- dat2_2_3_planes %>% left_join(dat2_2_3_flights , by = "manufacturer") %>%  
+  select(manufacturer,prop.x , prop.y) %>% rename(Data_planes= prop.x ,Data_flights= prop.y )
+final_dat2_2_3 <- temp %>% gather('Data_planes','Data_flights',key="Data_from",value="prop")
+
+#plot
+final_dat2_2_3 %>% ggplot(aes(x=manufacturer,y=prop,group=Data_from)) +
+  
+  #data
+  geom_bar(aes(fill=Data_from),stat='identity',position='dodge',width=0.7) +
+  
+  #text
+  geom_text(aes(label=final_dat2_2_3$prop), position = position_dodge(width=0.7),size=2.5,vjust=-0.5) +
+  
+  #axis
+  labs(x="",y="") +
+  scale_x_discrete(label = final_dat2_2_3$manufacturer) +
+  
+  #title & caption
+  ggtitle("Changes in the Manufacturer Distribution" ,subtitle = "Flights Data & Planes Data : Top 7 , Others") +
+  labs(caption = "Made by Lee Dong Gyu" ) +
+  
+  #theme
+  theme(plot.title = element_text(face = "bold", size =17) ) +
+  theme(plot.subtitle = element_text(face = "bold", size =10) ) +
+  theme(plot.caption = element_text(face="italic")) +
+  theme(axis.text.x = element_text( face = "bold",angle=45,hjust=1)) +
+  theme(axis.text.y = element_text( face = "bold")) +
+  
+  geom_hline(yintercept=0 , color = '#545454',size=1)
+```
+
+planes 데이터에서 분포와 flights 데이터에서의 상위7 제조사 분포는 위와 같다.  
+
+#### **3-1-1. What is the distribution of temperature in July,2013?**
+
+```{r}
+# Distribution of temp in July, 2013.
+new <- weather %>% complete(year,month,day,hour) # Check the implicit missing each day : make new data set.
+new %>% select(year,month,day) %>% is.na() %>% sum() # No missing days.
+dat3_1_1 <- weather %>% filter(year==2013,month==7) %>% select(origin,year,month,day,hour,temp) %>% 
+  group_by(origin,month,day) %>% summarize(avg_day_temp = mean(temp,na.rm=T) , max_day_temp = max(temp,na.rm=T) , min_day_temp = min(temp,na.rm=T) )
+
+#plot
+dat3_1_1 %>% ggplot(aes(x=day)) +
+  
+  #data
+  geom_line(aes(y=avg_day_temp,group=origin,color=origin),size=1.5) +
+  geom_line(aes(y=max_day_temp,group=origin,color=origin),linetype='longdash',size=1) +
+  geom_line(aes(y=min_day_temp,group=origin,color=origin),linetype='longdash',size=1) +
+
+  #axis
+  labs(y="",x="Day") +
+  scale_x_continuous(breaks = seq(0,30,5) ,labels = seq(0,30,5))+
+  
+  #title & caption
+  ggtitle("Distribution of Temperature in July, 2013" ,subtitle = "Min,Mean,Max Tempterature") +
+  labs(caption = "Made by Lee Dong Gyu" ) +
+  
+  #theme
+  theme(legend.background = element_rect(fill="gainsboro",color="black")) +
+  
+  theme(plot.title = element_text(face = "bold", size =17) ) +
+  theme(plot.subtitle = element_text(face = "bold", size =10) ) +
+  theme(plot.caption = element_text(face="italic",size=10)) +
+  theme(axis.text.x = element_text( face = "bold",size=8)) +
+  theme(axis.text.y = element_text( face = "bold",size=8)) +
+  theme(axis.title.x = element_text(face = "bold",size=10))
+```
+
+점선은 2013년 7월 온도의 최대, 최소를 나타낸 것이며, 실선은 평균값이다.  
+
+#### **3-1-2. Identify any important outliers in terms of wind_speed variable.**
+
+```{r}
+temp<- weather %>% select(origin,month,day,hour,wind_speed,wind_gust)
+
+temp  %>% mutate(day=as.factor(day)) %>%  ggplot() +
+  geom_boxplot(aes(x=day,y=wind_speed)) +
+  facet_grid(.~month)
+```
+
+이상치가 하나 떨어져 있는것을 확인 할 수 있다.
+표기오류라 생각하고, 제거해주자.  
+
+```{r}
+ind <- which(temp$wind_speed >100) # It might be a writing mistake.
+temp$wind_speed[ind]
+
+dat3_1_2 <- temp %>% filter(wind_speed < 100)
+
+#plot
+dat3_1_2  %>% mutate(day=as.factor(day)) %>%  ggplot() +
+  geom_boxplot(aes(x=day,y=wind_speed)) +
+  facet_grid(.~month) +
+  
+  #axis
+  labs(y="Wind Speed",x="Month - Day") +
+  scale_x_discrete(breaks = seq(0,30,10) ,labels = seq(0,30,10))+
+  
+  #title & caption
+  ggtitle("Outliers in terms of Wind speed Variable" ,subtitle = "Remove One Observation : Seems like a writing mistake") +
+  labs(caption = "Made by Lee Dong Gyu" ) +
+  
+  #theme
+  theme(plot.title = element_text(face = "bold", size =17) ) +
+  theme(plot.subtitle = element_text(face = "bold", size =10) ) +
+  theme(plot.caption = element_text(face="italic",size=10)) +
+  theme(axis.text.x = element_text( face = "bold",size=8)) +
+  theme(axis.text.y = element_text( face = "bold",size=8)) +
+  theme(axis.title.x = element_text(face = "bold",size=10)) +
+  theme(axis.title.y = element_text(face = "bold",size=10))
+
+```
+
+각 달 별 일자 대로 box-plot을 그려보았다. 점들이 이상치이다.
+40까지 치솟아 있는 것을 확인 할 수 있다.  
+
+#### **3-1-3. What is the relationship between dewp and humid?**
+
+```{r}
+# What is the relationship between dewp and humid?
+
+dat3_1_3 <- weather %>% select(origin,dewp,humid) %>% filter(!is.na(humid),!is.na(dewp)) %>% rename(Dewpoint=dewp,Humidity=humid)
+
+dat3_1_3 %>% ggplot(aes(x=Dewpoint,y=Humidity,shape=origin,col=origin)) +
+  geom_point(size=1.5) +
+  geom_smooth() +
+
+  #axis
+  labs(y="Humidity",x="Dew Point") +
+  scale_x_continuous(breaks = seq(0,100,10) ,labels = seq(0,100,10)) +
+  scale_y_continuous(breaks = seq(0,100,10) ,labels = seq(0,100,10)) +
+  
+  #title & caption
+  ggtitle("Relationship Between Dewpoint and Humidity" ) +
+  labs(caption = "Made by Lee Dong Gyu" ) +
+  
+  #theme
+  theme(legend.background = element_rect(fill="gainsboro",color="black")) +
+  theme(plot.title = element_text(face = "bold", size =17) ) +
+  theme(plot.subtitle = element_text(face = "bold", size =10) ) +
+  theme(plot.caption = element_text(face="italic",size=10)) +
+  theme(axis.text.x = element_text( face = "bold",size=8)) +
+  theme(axis.text.y = element_text( face = "bold",size=8)) +
+  theme(axis.title.x = element_text(face = "bold",size=10)) +
+  theme(axis.title.y = element_text(face = "bold",size=10))
+```
+
+두 변수간의 관계를 origin별로 그린 것이다. 대략적으로 양의 상관관계에 놓여있다.  
+
+#### **Bonus**
+
+아래는 추가로 공부해본 것들이다.  
+
+```{r}
+######################### Bonus #########################
+# Wind speed & Dewp // Wind speed & Humid
+Bonus <- weather %>% select(origin,month,day,wind_speed,dewp,humid) %>% filter(wind_speed < 100 , !is.na(humid),!is.na(dewp)) %>% 
+  group_by(month,day) %>% summarize(mean_wind_speed = mean(wind_speed),mean_dewp = mean(dewp),mean_humid = mean(humid)) 
+
+#plot
+#3D plot
+with(Bonus,plot3D::scatter3D(x=mean_dewp, y=mean_humid, z=mean_wind_speed,
+                                main="Mean: Wind Speed and (Dew Point,Humidity)",
+                                xlab='Dew Point',theta = 15, d = 2,
+                                ylab='Humidity',
+                                zlab='Wind Speed',bty = "g",
+                                pch = 20, cex = 2,
+                                ticktype = "detailed") )
+```
+
+세 변수의 관계를 보려면, 삼차원 산점도를 그려야 한다.  
+
+
+```{r}
+changed_Bonus <- Bonus %>% rename(Dewpoint=mean_dewp, Humidity=mean_humid) %>% 
+  gather('Dewpoint','Humidity',key="Variables",value="Value")
+# Mean Dewp & Mean Wind Speed
+changed_Bonus %>% ggplot(aes(x=Value,y=mean_wind_speed)) + geom_point(aes(shape=Variables,col=Variables),size=3) +
+  #axis
+  labs(y="Mean: Wind Speed",x="Mean: Humidity & Dew Point") +
+  scale_x_continuous(breaks = seq(0,100,10) ,labels = seq(0,100,10)) +
+  
+  #title & caption
+  ggtitle("Mean: Wind Speed according to Dew Point and Humidity" ) + 
+  labs(caption = "Made by Lee Dong Gyu" ) +
+  
+  #theme
+  theme(legend.background = element_rect(fill="gainsboro",color="black")) +
+  theme(plot.title = element_text(face = "bold", size =17) ) +
+  theme(plot.subtitle = element_text(face = "bold", size =10) ) +
+  theme(plot.caption = element_text(face="italic",size=10)) +
+  theme(axis.text.x = element_text( face = "bold",size=8)) +
+  theme(axis.text.y = element_text( face = "bold",size=8)) +
+  theme(axis.title.x = element_text(face = "bold",size=10)) +
+  theme(axis.title.y = element_text(face = "bold",size=10))
+######################### Bonus End #########################
+```
+
+2차원으로 투영시키면, 위와 같다.  
+
+
+#### **3-2-1. On how many days was there precipitation in the NY are in 2013?**
+
+```{r}
+# NY rain days
+weather %>% select(month,day) %>% unique() %>% nrow()
+```
+
+365개중 한개의 missing이 있는 듯 하다.  
+
+
+```{r}
+weather %>% select(month,day) %>% unique() %>%  group_by(month) %>% summarize(count=n())
+```
+
+12월에서 missing이 있다.
+
+
+```{r}
+View(weather %>% select(month,day) %>% unique() %>% filter(month==12) ) # Data set has a missing day on 12/31.
+
+dat3_2_1 <- weather %>% select(year,month,day,hour,precip) %>% mutate(TF_precip = I(precip>0)) %>% select(month,day,TF_precip) %>%
+  group_by(month,day) %>% summarize(TF_rain=I(sum(TF_precip)!=0))
+
+temp <- dat3_2_1 %>% select(month,TF_rain) %>% summarize(rain_days=sum(TF_rain))
+sum(temp$rain_days)
+```
+
+2013년 NY city에서 비가 온 날은 141일 이다.  
+
+
+#### **3-2-2. Were there difrerences in the mean visibility (visib) based on the day of the week and/or month of the year?**
+
+```{r}
+# Difrerences mean visibility based on the day of the week and/or month
+#bDifrerences mean visibility based on month and day
+dat3_2_2_month_day <- weather %>% select(month,day,visib) %>% mutate(month=as.factor(month),day=as.factor(day))
+
+# test Month & Day
+test = aov(visib ~ month + day ,dat = dat3_2_2_month_day)
+summary(test)
+```
+
+두 변수 모두 유의한 값을 지니므로, 각 달,요일별 평균 visibility는 같지 않다.  
+그렇다면 같은 그룹을 어떻게 나눌 수 있을까?
+다음은 schefee test를 해본 결과이다.  
+
+```{r}
+# There exists a difference in monthly or daily average visibility groups
+# Then, which day/month?
+comparison <- agricolae::scheffe.test(test,'month',group=TRUE,console=TRUE)
+comparison <- agricolae::scheffe.test(test,'day',group=TRUE,console=TRUE)
+```
+
+결과를 보고 groups에 있는 알파벳대로 그룹을 나눠주고 해당하는 label을 그룹으로 묶어서 해석하면 된다.  
+
+
+

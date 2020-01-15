@@ -1,0 +1,390 @@
+---
+title: "ST720 Data Science"
+subtitle: "Data Vaisualization with ggplot2"
+author: "Seung Jun Shin (sjshin@krea.ac.kr)"
+date: 'Department of Statistics, Korea University'
+fontsize: 10pt
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Introduction
+- \texttt{ggplot2} is visualization package in R
+- R has several systems for making graphs, but ggplot2 is one of the most elegant and most versatile.
+- ggplot2 implements the \textcolor{red}{grammar of graphics}.
+
+
+## package : tidyverse
+- \texttt{tidyverse} is a collection of packages for data science: vidualization, transformation, and modelling
+```{r, echo = T, eval = F}
+install.packages("tidyverse")
+library(tidyverse)
+```
+- includes \texttt{ggplot2}
+
+
+
+## mpg dataset
+- collected by EPA on 38 models of cars
+- displ : a car's engine size, in liters
+- hwy : a car's fuel efficiency on the highway,in miles per gallon(mpg)
+
+\scriptsize
+```{r, echo = F}
+mpg
+```
+
+## Creating a ggplot
+
+```{r,fig.align='center',fig.width = 5, fig.height = 2}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy))
+```
+
+- negative relationship between engine size(dipl) and fuel efficiency(hwy)
+
+
+## Aesthetic Mapping
+```{r,eval=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy))
+```
+
+- **ggplot(data = mpg )** : creates an empty graph
+- **geom_point()** : adds a layer of points to your plot
+
+
+## Aesthetic Mapping
+![aesthetic](fig_2.png)
+
+- Does the red dots are SUV ?
+- mapping it to an aesthetic in two-dimensional scatterplot
+- **level** : aesthetic properties (point's size, shape, and color)
+
+## Aesthetic Mapping (color/colour)
+```{r, fig.align='center',fig.width = 5, fig.height = 2}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy, color = class))
+```
+- **aes()** : map an aesthetic to a variable
+- mapping class by the color
+
+
+## Aesthetic Mapping (size)
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy, size = class)) 
+```
+- mapping class by the size
+
+- warning : mapping an unordered cariable to an ordered aesthetic (size) is not a good idea
+
+
+## Aesthetic Mapping (alpha)
+```{r,fig.align='center',fig.width = 5, fig.height = 2}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy, alpha = class)) 
+```
+- mapping class by the transparency of the points
+
+
+## Aesthetic Mapping (shape)
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy, shape = class)) 
+```
+- mapping class by the shape
+
+- only use six shapes by default( cf:\texttt{scale\_shape\_manual} )
+
+- additional groups will go unploted
+
+## Aesthetic Mapping 
+- **aes()** : associate the name of the aesthetic with a variable to display.
+- selects a reasonable scale to use with the aesthetic.
+- it construcnts a legend that explain the mapping b/w levels and values.
+- For x and y, it creates an axis line as a legend
+
+## Aesthetic Mapping 
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy), color = "blue") 
+```
+- set the aesthetic properties of geom manually
+- but in here, the color doesn't have information about a variable.
+
+## Aesthetic Mapping 
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy, color = "blue")) 
+```
+- to set an aesthetic manually, it goes outside of aes()
+
+## Facets
+- One way to add additional variables is with aesthetics
+
+- Another way, particularly useful for categorical variables, is to split your plot into facets, subplots that each display one subset of the data.
+
+## \texttt{facet\_wrap()}
+```{r,fig.align='center',fig.width = 5, fig.height = 2.3, warning=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy)) +  
+  facet_wrap(~ class, nrow = 2) 
+```
+
+
+## \texttt{facet\_grid()}
+```{r,fig.align='center',fig.width = 5, fig.height = 2.3, warning=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy)) +  
+  facet_grid(drv ~ cyl)
+```
+
+## \texttt{facet\_grid()}
+```{r,fig.align='center',fig.width = 5, fig.height = 2.3, warning=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy)) +  
+  facet_grid(. ~ cyl)
+```
+
+## Geometric Objects
+\begin{itemize}
+\item \texttt{geom} : geometrical object
+\begin{itemize}
+   \item \texttt{bar\_geom()} : bar charts
+   \item \texttt{line\_geom()} : line charts
+   \item \texttt{boxplot\_geom()} : boxplots
+   \item \texttt{point\_geom()} : scattetplots
+   \item \texttt{smoothe\_geom()} : smoothe fitted line
+   \item ggplot2 provieds over 30 geoms < https://www.ggplot2-exts.org >
+\end{itemize}
+\end{itemize}
+
+## \texttt{point\_geom()}
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy))
+```
+
+## \texttt{smooth\_geom()}
+```{r,fig.align='center',fig.width = 5, fig.height = 2}
+ggplot(data = mpg) +  
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+```
+
+## \texttt{smooth\_geom()}
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg) +  
+  geom_smooth(mapping = aes(x = displ, y = hwy, linetype = drv))
+```
+- separates the cars into three lines based on **drv** values.
+- 4 : stands for four-wheel drive, f : front-wheel drive, r : rear-wheel drive
+
+## \texttt{smooth\_geom()}
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  geom_smooth(mapping = aes(x = displ, y = hwy, linetype = drv))
+```
+- plot contains two geons in the same graph (next section)
+
+## \texttt{smooth\_geom()} with \texttt{group}
+- **group** aesthetic to a categorical variable to draw multiple objects
+
+- draw a separate object for each unique value of the grouping variable
+
+- automatically group the data (ex) linetype, color
+
+## \texttt{smooth\_geom()} with \texttt{group}
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg) +  
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+```
+
+
+## \texttt{smooth\_geom()} with \texttt{group}
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg) +  
+  geom_smooth(mapping = aes(x = displ, y = hwy, group = drv))
+
+```
+
+
+## Multiple \texttt{geom}
+- Multiple geoms in the same plot
+
+```{r,fig.align='center',fig.width = 4, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy)) +  
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+```
+
+##  Multiple \texttt{geom}
+```{r,fig.align='center',fig.width = 4, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) +  
+  geom_point() +  
+  geom_smooth()
+```
+
+##  Multiple \texttt{geom}
+```{r,fig.align='center',fig.width = 4, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) +  
+  geom_point(mapping = aes(color = class)) +  
+  geom_smooth()
+```
+- Mappings in a geom function as local mappings for the layer.
+
+##  Multiple \texttt{geom} with different data
+```{r,fig.align='center',fig.width = 4, fig.height = 1.8, warning=FALSE, message=FALSE}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) +  
+  geom_point(mapping = aes(color = class)) +  
+  geom_smooth(    
+    data = filter(mpg, class == "subcompact"), se = FALSE  )
+```
+- Same idea to different data for each layer
+
+
+## Statistical Transformation
+```{r,fig.align='center',fig.width = 4, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = diamonds) + geom_bar(mapping = aes(x = cut))
+```
+
+
+## Statistical Transformation
+![geom_bar()](fig_3.png)
+
+## Statistical Transformation (\texttt{stat\_count})
+```{r,fig.align='center',fig.width = 4, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = diamonds) +  stat_count(mapping = aes(x = cut))
+```
+- Same as \texttt{geom\_bar()}
+
+## Statistical Transformation 
+```{r,fig.align='center',fig.width = 3, fig.height = 1.5, warning=FALSE, message=FALSE}
+(demo <- tribble(~a, ~b, "bar_1", 20, "bar_2", 30, "bar_3", 40 ))
+ggplot(data = demo) +  geom_bar(    
+  mapping = aes(x = a, y = b), stat = "identity"  )
+```
+
+## Statistical Transformation (proportion)
+```{r,fig.align='center',fig.width = 4, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = diamonds) +  
+  geom_bar(mapping = aes(x = cut, y = ..prop.., group = 1))
+```
+
+## Statistical Transformation (\texttt{stat\_summary()})
+```{r,fig.align='center',fig.width = 4, fig.height = 1.8, warning=FALSE, message=FALSE}
+ggplot(data = diamonds) +  
+  stat_summary(    
+    mapping = aes(x = cut, y = depth),    
+    fun.ymin = min, 
+    fun.ymax = max, 
+    fun.y = median
+    )
+```
+
+## Position Adjustmnets (\texttt{geom\_bar()})
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = diamonds) +  
+  geom_bar(mapping = aes(x = cut, color = cut))
+```
+
+## Position Adjustmnets (\texttt{geom\_bar()})
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = diamonds) +  
+  geom_bar(mapping = aes(x = cut, fill = cut))
+```
+
+## Position Adjustmnets (\texttt{geom\_bar()})
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = diamonds) +  
+  geom_bar(mapping = aes(x = cut, fill = clarity))
+```
+- each colored rectangle represents a combination of **cut** and **clarity**
+- stacking is performed atuomatically by **position** argument.
+- "identity", "dodge", "fill"
+
+## \texttt{geom\_bar()} with \texttt{position = "identity"}
+- place each object exactly where it falls in the context of the graph
+- not useful in bars but uesful for 2D geoms like points
+
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(  data = diamonds,  
+         mapping = aes(x = cut, fill = clarity) ) +  
+  geom_bar(alpha = 1/5, position = "identity") 
+```
+- *alpha* : slightly transparent
+
+## \texttt{geom\_bar()} with \texttt{position = ""}
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = diamonds) +  geom_bar(    
+  mapping = aes(x = cut, fill = clarity), position = "fill"  )
+```
+- works like stacking but makes each set of stackted bars the same height.
+- easier to compare proportions across groups
+
+## \texttt{geom\_bar()} with \texttt{position="dodge"}
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = diamonds) +  geom_bar(    
+  mapping = aes(x = cut, fill = clarity), position = "dodge"  )
+```
+- places overlapping objects directly beside on another
+- easier to compare individual values
+
+## Position Adjustmnets (\texttt{geo\_point})
+- scatterplot
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg) +  
+  geom_point(mapping = aes(x = displ, y = hwy))
+```
+- display only 126 points, even though there are 234 obs
+- overplotting (hwy, displ are rounded)
+
+## \texttt{geom\_point} with \texttt{position="jitter"}
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg) +  geom_point(    
+  mapping = aes(x = displ, y = hwy),position = "jitter"  )
+```
+- adds a small amount of random noise to each point
+- less accurate at small scales
+
+## Coordinate Systems 
+```{r,fig.align='center',fig.width = 3, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) +  
+  geom_boxplot() 
+```
+
+## \texttt{coord\_flip()}
+```{r,fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) +  
+  geom_boxplot() +  coord_flip()
+```
+- switches the x- and y-
+- useful for long label
+
+## \texttt{coord\_polar()}
+```{r,results='hide',fig.align='center',fig.width = 5, fig.height = 2, warning=FALSE, message=FALSE}
+bar <- ggplot(data = diamonds) +  
+  geom_bar(    
+    mapping = aes(x = cut, fill = cut),    
+    show.legend = FALSE,    
+    width = 1  ) +  
+  theme(aspect.ratio = 1) +  
+  labs(x = NULL, y = NULL)
+```
+
+## \texttt{coord\_flip()} and \texttt{coord\_polar()}
+```{r,eval=F,fig.align='center',fig.width = 3, fig.height = 1.5, warning=FALSE, message=FALSE}
+bar + coord_flip() 
+bar + coord_polar()
+```
+![coord_flip(), coord_polar()](fig_7.png)
+
+
+## Reference
+- Wickham, H. and Grolemund, G. (2017) R for Data Science, O'reilly Media Inc., Chapter 1. 
+

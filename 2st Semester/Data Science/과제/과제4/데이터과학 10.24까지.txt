@@ -1,0 +1,14 @@
+데이터과학
+1. ggplot 복습하면서 다시 그려보기
+2. arxiv는 논문저장소 같은곳임. (온라인저장소) // 컴퓨터사이언스는 다 여기에 올려버림
+Neural Network 해보기. : 시간이 좀 걸림. (1000개하면 꽤걸림 - 1분?)
+-> 뽑아내면 데이터프레임. 티블로 바꿔서, 
+-> summitted : 제출날짜 update : 업데이트날짜
+-> doi는 문서의 아이디같은것.  , journal_ref : 어느저널에 실렷냐, primary_category : 약자들 잘 찾아서 알아보기.
+-> 그런 정보들로, 다음의 진행을 시행한다.
+
+1) plot wordcloud : stop words를 하는사람, 안하는사람 있을 수 있음 내 마음대로 하기. (stopwords하기)
+2) 몇년도에 제일 많은 paper가 나왔는가
+3) 어느 분야의 페이퍼가 많냐
+4) tf-idf를 구해라. (abstract변수가 기준일거임.) 
+5) 제일 유사한걸 구해보든, clustering을 해보기. kmeans, Hierarchical Clustering 등을 선택.

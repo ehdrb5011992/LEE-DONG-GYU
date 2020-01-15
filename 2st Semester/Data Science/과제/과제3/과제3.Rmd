@@ -1,0 +1,168 @@
+---
+title: "HW3 : 석사 2학기 이동규"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+####  **Library**
+
+```{r message=FALSE}
+library(janeaustenr)
+library(tidyverse)
+library(tidytext)
+```
+
+#### 0. Data import
+
+```{r}
+austen <- austen_books()
+austen
+data("stop_words")
+
+```
+
+<br><br><br>
+
+
+#### 1. Conduct preprocessing including tokenization (using unnest_tokens) and removing stopwords (using data(stop_words)).
+
+```{r}
+tokenization <- austen %>% unnest_tokens(word,text)
+tokenization
+nrow(tokenization) #number of lines
+
+remove_stopwords <- tokenization %>% anti_join(stop_words)
+remove_stopwords
+nrow(remove_stopwords) #check the number of lines changed
+```
+
+<br><br><br>
+
+
+#### 2. Calculate the term-document matrix whose column is novel (Documnet) , row is word, and value is word frequency.
+
+```{r}
+dat2 <- remove_stopwords  %>% mutate(word=str_extract(word,"[a-z]+")) %>%  count(book,word)  
+term_document_freq <- dat2 %>% group_by(book) %>% mutate(proportion = n/sum(n)) %>%
+  select(book,word,n) %>% spread(book,n) 
+term_document_freq
+```
+
+<br><br><br>
+
+
+#### 3. Given the term-document matrix, each novel is represented as a vector (which is sparse). Find two-most similar and different novels. Justify your answers.
+
+Correlation을 가지고 비교하되, tf-idf를 사용한 방법과 단순 단어의 빈도율을 계산한 방법 각각을 시행해보고 비교해보았다.<br><br><br>
+
+#### 3-1) tf-idf 를 통한 correlation 계산
+
+```{r}
+#3-1 Correlation through the tf-idf index.
+temp <- remove_stopwords %>% mutate(word=str_extract(word,"[a-z]+")) %>% count(book,word,sort=T)
+dat3 <- temp %>% bind_tf_idf(word,book,n)
+
+term_document_tf_idf <- dat3 %>% select(book,word,tf_idf) %>% spread(book,tf_idf) 
+term_document_tf_idf
+
+
+
+NAME=names(term_document_tf_idf)[-1]
+NAME
+len <- length(NAME)
+ans <- list()
+cor_mat <- matrix(1,len,len)
+
+for (i in 1:(len-1)) {
+  
+  mat <- c()
+  
+  for (j in (i+1):len) {
+    
+    
+    dat3_1 <- term_document_tf_idf %>% gather(book,tf_idf,NAME[-i]) 
+    f <-  as.formula(paste('~','tf_idf','+',str_c('`',NAME[i],'`')))
+    
+    result <- cor.test( f ,data=dat3_1[dat3_1$book == NAME[j],])
+    est <- result$estimate ; p <- result$p.value ; conf.int <- result$conf.int;
+    row <- round(c(est,p_value=p,conf_int=conf.int),3)
+    mat <- rbind(mat,row)
+    
+    cor_mat[i,j] <- cor_mat[j,i] <- round(est,3)
+  }
+  
+  rownames(mat) <-  NAME[(i+1):len]
+  ans[[i]] <- mat
+  
+  
+}
+
+names(ans) <- NAME[1:5]
+ans
+colnames(cor_mat) <- rownames(cor_mat) <- NAME
+cor_mat
+```
+
+가장 높은 상관계수 : Northanger Abbey & Pride & Prejudice = 0.790 <br>
+가장 낮은 상관계수 : Emma & Persuasion = 0.018 <br>
+가장 낮은 상관계수는 p-값이 높게 나오지만, 어차피 0 근처라 크게 상관없이 관계없다고 봐도 무방하다.<br><br><br>
+
+
+#### 3-2) 단순비율을 통한 correlation 계산
+
+```{r}
+#3-2 Correlation through the proportion.
+
+term_document_proportion <-  dat2 %>% group_by(book) %>% mutate(proportion = n/sum(n)) %>% 
+  select(book,word,proportion) %>% spread(book,proportion)
+term_document_proportion
+
+
+
+NAME=names(term_document_freq)[-1]
+NAME
+len <- length(NAME)
+ans <- list()
+cor_mat <- matrix(1,len,len)
+
+temp <- dat2 %>% group_by(book) %>% mutate(proportion = n/sum(n)) %>% 
+  select(-n) %>% spread(book,proportion)
+for (i in 1:(len-1)) {
+  
+  mat <- c()
+  
+  for (j in (i+1):len) {
+    
+    dat3_1 <- temp %>% gather(book,proportion,NAME[-i]) 
+    f <-  as.formula(paste('~','proportion','+',str_c('`',NAME[i],'`')))
+    
+    result <- cor.test( f ,data=dat3_1[dat3_1$book == NAME[j],])
+    est <- result$estimate ; p <- result$p.value ; conf.int <- result$conf.int;
+    row <- round(c(est,p_value=p,conf_int=conf.int),3)
+    mat <- rbind(mat,row)
+    
+    cor_mat[i,j] <- cor_mat[j,i] <- round(est,3)
+  }
+  
+  rownames(mat) <-  NAME[(i+1):len]
+  ans[[i]] <- mat
+  
+}
+
+names(ans) <- NAME[1:5]
+ans
+colnames(cor_mat) <- rownames(cor_mat) <- NAME
+cor_mat
+```
+
+가장 높은 상관계수 : Northanger Abbey & Mansfield Park = 0.795 <br>
+가장 낮은 상관계수 : Emma & Persuasion = 0.439 <br><br><br>
+
+두개의 방법을 시행해보았지만, tf-idf를 이용한 상관계수 결과에 더 믿음이 간다. 두번째 방법인 단순 비율은 
+각 단어의 중요도를 문서별로 고려하지 않고, 빈도수만 나타냈기에 그 단어가 문서에서 얼마나 중요한지에 대한 정보는 누락되어 있는 반면, tf-idf는 단어의 문서별 중요도 문제도 같이 고려하기 때문에 단순 비율보다 많은것을 내포하고 있다. 따라서 첫번째 방법인 tf-idf에 대한 corrleation 방법으로 문서의 유사도를 판단하는 것이 낫다는 의견이다.
+
+
+
