@@ -1,0 +1,483 @@
+---
+title: "HW4 : 석사 2학기 이동규"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### **Library**
+
+```{r message=FALSE}
+library(poLCA) # chapter 2
+library(vcd) # chapter 2
+library(MatchIt) # chapter 3
+library(quantreg) # chapter 3
+library(weights) # chapter 3
+library(stats4) # chapter 4
+library(TSP) # chapter 4
+library(mice) # chapter 5
+
+```
+
+### 2장
+
+
+```{r}
+#data values
+data(values)
+head(values)
+f <- cbind(A,B,C,D) ~ 1
+```
+
+values 데이터를 불러오고, A,B,C,D 변수에 대해 공변량이 없는 함수를 고려한다.
+
+```{r}
+# nclass = 2
+set.seed(123)
+M2 <- poLCA(f,values,nclass=2)
+```
+
+각 변수(A,B,C,D)에 대해 가질 수 있는 값들 1,2에 따라 어느 잠재층(class)에 속하는지 확률을 출력한 값이다. 위의 값들은 $\hat{\pi}_{rjk}$ 를 추정한 결과이다. (j는 A,B,C,D , k는 pr(1),pr(2) , r은 class)
+또한, 각 class에 대한 사전확률(0.7208, 0.2792) 를 확인할 수 있으며, 사후확률(0.6713,0.3287)도 확인할 수 있다.
+AIC , BIC 로 모형비교에 대한 지표를 볼 수 있다.
+
+AIC, BIC에 대한 내용은 아래에서 잠재층을 3개로 간주한 모형을 통해서 더 살펴볼 수 있다.
+
+
+```{r}
+# nclass = 3
+set.seed(123)
+M3 <- poLCA(f,values,nclass=3,maxiter=10000)
+```
+
+class가 2인 AIC, BIC보다 class가 3인 AIC, BIC값이 더 크므로, AIC, BIC값이 작은 값인 class=2 인 모형을 택하기로 한다.
+
+
+```{r}
+#data election
+data(election)
+set.seed(1234)
+f.1 <- cbind(MORALG,CARESG,KNOWG,LEADG,DISHONG,INTELG,
+             MORALB,CARESB,KNOWB,LEADB,DISHONB,INTELB)~PARTY
+lcrm.1 <- poLCA(f.1,election,nclass=3,nrep=5)
+```
+
+이번엔 election data를 보고 살펴보자. 사전확률, 사후확률을 확인할 수 있으며 PARTY라는 공변량을 고려한 채 분석환 결과이다. 결과를보면 잠재층 1대비 2,3에서는 PARTY에 대해 양의부호 이므로 PARTY변수가 공화당으로 갈 수록 favor bush임을 말하는건 기존의 지식과도 연결되어 타당해보인다. 
+
+
+```{r}
+#graph
+colnames(lcrm.1$posterior) <- c('Favor Gore','Neutral','Favor Bush')
+ternaryplot(lcrm.1$posterior,cex=0.5,main='election study',
+            col=c('red','green','blue')[lcrm.1$predclass])
+```
+
+위의 terenaryplot은 election자료의 층 사후확률이다. 각 개체의 사후확률을 표기한 그래프이며 각 개채마다 어느 class에 속하는지와 각 class에 대한 확률을 읽을 수 있다. (삼각형좌표) 
+
+```{r}
+#logistic 
+data(election)
+f.2 <- cbind(MORALG,CARESG,KNOWG,LEADG,DISHONG,INTELG,
+             MORALB,CARESB,KNOWB,LEADB,DISHONB,INTELB) ~ 1
+
+set.seed(123)
+lca.2 <- poLCA(f.2,election,nclass=3,nrep=5,na.rm=F)
+```
+
+이번엔 잠재층에 대해 로지스틱 회귀를 적용해보려고 한다. 위의 코드는 공변량은 없고 층의 수가 3인 잠재층 모형을 고려한 결과이다. 여기까지는 일반적인 잠재층 분석과 다를바가 없다.
+
+
+```{r}
+subset <- (lca.2$predclass != 3)
+election$Z.1 <- lca.2$predclass -1
+logistic <- glm(Z.1~ AGE + GENDER + EDUC + PARTY , data=election[subset,],family=binomial())
+summary(logistic)
+```
+
+그리고 위에서 얻어진 잠재층을 가지고 AGE, GENDER, EDUC, PARTY 변수에 대한 로지스틱 회귀를 적용해서 분석해보면 위와 같은 결과를 얻는다.PARTY변수와 EDUC 변수가 유의하며 PARTY는 + , EDUC는 - 상관관계를 지님을 확인할 수 있다.
+
+
+### 3장
+```{r}
+# Propensity Score Matching 
+data(lalonde)
+str(lalonde)
+summary(lalonde$re78[lalonde$treat==1])
+summary(lalonde$re78[lalonde$treat==0])
+```
+
+배후요인을 고려하지 않고 데이터의 구조를 보면 위와같은 형태를 가지고 있음을 알수있다.
+
+```{r}
+boxplot(sqrt(re78) ~ treat, data=lalonde, horizontal=T, main="re78", ylab="treat", xlab="sqrt scale")
+```
+
+이를 box plot으로 나타내면 위와 같다.
+
+
+```{r}
+# nearest neighbor matching
+matchit(treat ~ re74 + re75 + educ + black + hispan + age, method = "nearest", data = lalonde)
+```
+
+이번엔 배후요인을 고려한 분석을 시행해보자. 방법으로는 최근접 이웃맞추기를 택하였다. 이때 매칭된 개수는 185개임을 확인할 수 있다.
+
+
+```{r}
+matchit(treat ~ re74 + re75 + educ + black + hispan + age, data = lalonde, method = "nearest", discard="both", ratio=2)
+```
+
+이번엔 처리1개에 대조2개를 비율로 맞추고 최근접 이웃맞추기 방법을 그대로 진행하되, 양쪽에 겹치지 않는 데이터는 버리는 행동을 취했다. 그 결과 324:185개의 쌍이 맞춰 졌으며 대조군 그룹중 105개의 데이터는 버려짐을 확인할 수 있다.
+
+
+```{r}
+m.out <- matchit(treat ~ re74 + re75 + educ + black + hispan + age, data = lalonde, method = "nearest", discard="both", ratio=2)
+m.lalonde <- match.data(m.out)
+y1 <- m.lalonde$re78[m.lalonde$treat==1]
+y0 <- m.lalonde$re78[m.lalonde$treat==0]
+w1 <- m.lalonde$weights[m.lalonde$treat==1]
+w0 <- m.lalonde$weights[m.lalonde$treat==0]
+weighted.mean(y1, w1); weighted.mean(y0, w0)
+```
+
+위에서 진행한 최근접이웃방법에 양쪽버리기를 택하고, 처리:대조 비율을 1:2로 한 성향점수 맞추기 방법을 통해 얻은 결과이다. 배후요인을 고려하게 되면 대조요인 평균이 6984에서 5719로 조절됨을 확인할 수있다.
+
+
+```{r}
+rq(y1 ~ 1, weights=w1, tau=c(0.25,0.5,0.75))
+rq(y0 ~ 1, weights=w0, tau=c(0.25,0.5,0.75))
+```
+
+그리고 이렇게 가중치로 조절된 값에 대해 상위 25%, 50%, 75% 를 살펴보면 위와 같다. y1이 처리그룹, y0는 대조그룹에 대한 정보이다.
+
+
+```{r}
+# Propensity Score Matching, subclass matching
+data(lalonde)
+m.out <- matchit(treat ~ re74 + re75 + educ + black + hispan + age, data = lalonde, method = "subclass")
+m.lalonde <- match.data(m.out)
+y1 <- m.lalonde$re78[m.lalonde$treat==1]
+y0 <- m.lalonde$re78[m.lalonde$treat==0]
+w1 <- m.lalonde$weights[m.lalonde$treat==1]
+w0 <- m.lalonde$weights[m.lalonde$treat==0]
+weighted.mean(y1, w1); weighted.mean(y0, w0)
+```
+
+이번엔 최근접 이웃 맞추기 대신 부구간 맞추기로 진행해보았다. 이때 대조그룹의 평균값은 5364로 weight를 주기 전인 6984에 비해 많이 줄어들었음을 확인할 수 있다. 참고로 최근접 이웃 맞추기(nearest neighbor matching)의 경우는 5730의 값을 평균값으로 나타내었다.
+
+```{r}
+par(mfrow=c(2,1))
+wtd.hist(m.lalonde$distance[m.lalonde$treat==1],nclass=20,main="propensity scores [treat]",xlim=c(0,1))
+wtd.hist(m.lalonde$distance[m.lalonde$treat==0],nclass=20,main="propensity scores [control]",xlim=c(0,1))
+
+x11(); par(mfrow=c(2,1))
+wtd.hist(m.lalonde$distance[m.lalonde$treat==1],weight=w1,nclass=20,main="propensity scores [treat]",xlim=c(0,1))
+wtd.hist(m.lalonde$distance[m.lalonde$treat==0],weight=w0,nclass=20,main="propensity scores [control]",xlim=c(0,1))
+```
+
+그렇게 배후요인이 조정된 성향점수의 분포에 대해 확인하면 위와 같다.
+
+### 4장
+
+```{r}
+# example 1. Poisson observations
+x <- c(3,10,5,4)
+n <- length(x)
+n.log.lik <- function(mu) n*mu - sum(x)*log(mu)
+optim(n.log.lik, method="L-BFGS-B", par =1, lower=0, upper=100) 
+```
+
+포아송의 최대가능도 추정치와 log-liklihood구하면 위와 같다. 모수 추정치 $\hat{\theta} = 5.5$ 이고, $l(\hat{\theta}) = 15.5$ 이다. 위에서 value 값은 음의 가능도 값이다.
+
+
+```{r}
+# example 2. Weibull observations
+x <- c(1,1,2,2,3,4,4,5,5,8,8,8,8,11,11,12,12,15,17,22,23)
+n <- length(x)
+n.log.lik <- function(theta) {
+  theta.1 <- theta[1] ; theta.2 <- theta[2]
+  temp.1 <- -n*log(theta.1/theta.2) - (theta.1-1)*sum(log(x/theta.2))
+  temp.2 <- sum((x/theta.2)^theta.1)     
+  return( temp.1 + temp.2)
+}
+optim(fn=n.log.lik, par=c(1,10), method="L-BFGS-B", lower=c(0,0))
+```
+
+마찬가지로, 이번엔 와이블 분포에 대한 최대가능도 추정치(최적화)를 구해보았다. 이때 , $(\hat{\theta_{1}} , \hat{\theta_{2}}) = (1.37,9.48)$ 이고, $l(\hat{\theta_{1}} , \hat{\theta_{2}}) = -64.92$ 이다. 이를 Nelder-Mead 방법으로 구하면 아래와 같다. 
+
+
+```{r}
+optim(fn=n.log.lik, par=c(1,10), method="Nelder-Mead")
+```
+
+추정된 값들은 같음을 알 수 있다. 다만, 이 알고리즘에서는 gradient는 계산되지 않으므로 NA가 출력된다.
+
+
+```{r}
+# example 1 (continued)
+x <- c(3,10,5,4)
+n <- length(x)
+n.log.lik <- function(mu) n*mu - sum(x)*log(mu)
+fitted <- mle(n.log.lik, start=list(mu=1), nobs=n)
+logLik(fitted)
+summary(fitted)
+confint(fitted)
+```
+
+
+이를 mle함수를 통해 구할수도 있다. logLik함수를 사용하면 로그가능도 최댓값을 출력하고, 모수의 95% 신뢰구간, Deviance값도 출력해준다. 
+
+
+```{r}
+# example 2 (continued)
+n.log.lik <- function(theta.1,theta.2) {
+  temp.1 <- -n*log(theta.1/theta.2) - (theta.1-1)*sum(log(x/theta.2))
+  temp.2 <- sum((x/theta.2)^theta.1)     
+  return( temp.1 + temp.2)
+}
+fitted <- mle(n.log.lik,start=list(theta.1=1,theta.2=10),nobs=n)
+logLik(fitted)
+summary(fitted)
+confint(fitted)
+vcov(fitted)
+```
+
+덧붙여 위의 결과는 와이블 분포를 mle함수를 통해 적합시키고 요약을 한 결과이다. 
+
+
+```{r}
+# example 3. exponential growth
+growth <- read.table("C:\\Users\\82104\\Desktop\\Applied Data Analysis Using R\\Applied Data Analysis Using R\\04_optimization\\growth.txt",header=T)
+str(growth)
+attach(growth)
+rss <- function(beta){
+  beta.1 <- beta[1]; beta.2 <- beta[2]
+  fit <- beta.1*(1-exp(-beta.2 * x))
+  err <- y - fit
+  return(sum(err*err))
+}
+optim(fn=rss, par=c(1,0.5))
+```
+
+이번엔 growth data에 대해 optim 함수를 돌려본 결과이다. 비선형 회귀분석을 돌려보았고, 해석은 기존과 같다. 모수2개에 차례로 0.95, 1.01값이며 이때 음의가능도는 0.23이다.
+
+
+
+```{r}
+optim(fn=rss, par=c(1,0.5), method="L-BFGS-B", lower=c(0,0))
+```
+
+
+이를 L-BFGS-B방법을 통해 돌려본 결과이다. parameter의 경우 위와 살짝 다르지만, 크게다르지는 않다.
+
+
+```{r}
+nlrm <- optim(par=c(1,0),fn = rss)
+beta <- nlrm$par
+beta.1 <- beta[1]; beta.2 <- beta[2]
+fit <- beta.1*(1-exp(-beta.2*growth$x))
+plot(growth$x,growth$y,pch=21,xlim=c(0,250),ylim=c(0,1),main="exponential growth",ylab="y")
+par(new=T); plot(growth$x,fit,pch=19,cex=0.6,col="red",xlim=c(0,250),ylim=c(0,1),ylab="")
+```
+
+
+그리고 위의 결과를 가지고 실제 데이터와 모형의 fitting값을 찍어본 결과이다. 빨간색이 Y의 fitting된 결과값이다.
+
+
+```{r}
+# example 4. constant elasticity of substitution
+ces <- read.table("C:\\Users\\82104\\Desktop\\Applied Data Analysis Using R\\Applied Data Analysis Using R\\04_optimization\\ces.txt",header=T)
+str(ces)
+attach(ces)
+rss <- function(beta){
+  beta.0 <- beta[1]; beta.1 <- beta[2]; beta.2 <- beta[3]; beta.3 <- beta[4]
+  fit <- beta.0 + beta.1*log(beta.2*x1^beta.3+(1-beta.2)*x2^beta.3)
+  err <- y - fit
+  return(sum(err*err))
+}
+optim(fn=rss, par=c(1,-1,0.5,-1), method="L-BFGS-B", lower=c(0,-10,0,-10), upper=c(10,0,1,0))
+```
+
+
+마찬가지로 이번엔 $Y= \beta_{0} + \beta_{1}\log(\beta_{2} X_1 ^{\beta_3} +(1-\beta_{1}) X_2 ^{\beta_3} ) + \epsilon$ 모형에 대해서 최적화 알고리즘을 돌린 결과이다. 각 모수값과 음의 최대가능도 값을 확인할 수 있다.
+
+
+
+```{r}
+# TSP for protein data
+protein <- read.table("C:\\Users\\82104\\Desktop\\Applied Data Analysis Using R\\Applied Data Analysis Using R\\04_optimization\\protein.txt",header=T)
+str(protein)
+country <- protein$Country
+X <- scale(protein[,2:10])
+D <- dist(X)
+D.tsp <- TSP(D,labels=country)
+solve_TSP(D.tsp,method="repetitive_nn")
+```
+
+경로의 거리 총합은 repetitive_nn 방법으로 위의 결과,
+
+
+```{r}
+solve_TSP(D.tsp,method="2-opt")
+```
+
+2-opt 방법으로는 위의 거리결과를 출력한다.
+
+
+```{r}
+tsp.country <- solve_TSP(D.tsp,method="2-opt")
+labels(tsp.country)
+```
+
+
+그리고 2-opt방법을 이용해서 TSP 에 대한 경로를 확인하면 위의 결과를 얻을 수 있다. 이때, TSP의 해는 원형고리이므로 처음과 끝은 이웃한다.
+
+
+```{r}
+D.plus <- insert_dummy(D.tsp, label = "cut")
+tsp.country.plus <- solve_TSP(D.plus, method="2-opt")
+tsp.country.plus
+```
+
+그리고 이경우는 안돌아 와도 되는 경우이며, 위의 거리결과를 출력한다. 새로운 변수 cut을 추가해 줌으로써 분석을 진행한다. 
+
+
+```{r}
+tsp.country.cut <- cut_tour(tsp.country.plus, "cut")
+labels(tsp.country.cut)
+```
+
+그리고 위의 결과는 안돌아와도 되는 경우의 루트이다. 
+
+
+
+```{r}
+mds <- cmdscale(D)
+plot(mds[,1],mds[,2],type="n", xlim=c(-5,5),ylim=c(-5,5),main="Protein Consumption")
+text(mds[,1],mds[,2],abbreviate(country,minlength=3),cex=0.8)
+seq.mds <- as.integer(tsp.country.cut)
+for (i in 2:length(country)){
+  segments(mds[seq.mds[i-1],1],mds[seq.mds[i-1],2],mds[seq.mds[i],1],mds[seq.mds[i],2],col="red")
+}
+```
+
+그리고 안돌아와도 되는 경우의 루트를 그림으로 그리면 위와 같다. 
+
+### 5장
+
+```{r}
+data(nhanes)
+str(nhanes)
+```
+
+nhanes의 데이터 구조는 위와같다.
+
+
+```{r}
+pattern <- md.pattern(nhanes)
+```
+
+그리고 각 변수에 대한 결측치 조합과 개수를 살펴보면 위처럼 그래프로 나타낼 수 있다.
+
+
+```{r}
+colnames(pattern)[ncol(pattern)] <- "# miss"
+rownames(pattern)[nrow(pattern)] <- "# miss"
+pattern
+md.pairs(nhanes)
+```
+
+혹은 수치로 보면 위와 같다. 
+
+
+
+```{r}
+mice(nhanes, seed=23109, m=5)
+```
+
+col 변수를 이용해서 Missing 데이터의 값을 이끌어 낸다. 이때, 각 변수의 Missing 에 대해서는 pmm방법을 쓴다. 이 방법은 목표변수가 수치형인 경우에 사용한다.
+
+
+
+```{r}
+# use data nhanes2
+data(nhanes2)
+str(nhanes2)
+```
+
+이번엔 nhanes2데이터에 대해 살펴보자. 다른점이란 age와 hyp가 factor로 들어온것 뿐이다.
+
+
+```{r}
+mice(nhanes2, seed=23109, m=5)
+```
+
+
+그리고 결과를 돌리면 위와 같다. 이대 hyp변수는 logreg의 방법을 취하고, 목표변수가 이항형인 경우에 해당한다.
+
+```{r}
+imp.mice <- mice(nhanes2, seed=23109, m=10)
+print(imp.mice)
+```
+
+위의 결과는 m=10으로,  Missing을 채워넣는 행위를 10번 다르게 진행한다.
+
+
+```{r}
+imp.mice$imp$bmi
+imp.mice$imp$hyp
+imp.mice$imp$chl
+```
+
+위의 결과는 각 변수별로 10번의 Missing을 채워넣는 행위를 하고난 뒤 어떤 값들로 Missing이 대체되었나 확인하는 결과이다. bmi의 경우 9개의 데이터가, hyp의경우 8개, chl의 경우 10개의 데이터들이 비어있었다.  
+
+```{r}
+stripplot(imp.mice, pch=21, cex=1.2, col=c("blue","red"))
+```
+
+0번째는 원자료를 지칭하고, 나머지는 각 횟수에 대해 빨간색 원(imputation)이 일어남을 확인할 수 있다.
+
+```{r}
+xyplot(imp.mice, chl~bmi|.imp, pch=21, col=c("blue","red"), cex=1.4)
+```
+
+그리고 chl, bmi변수를 통해 x,y plot을 본 결과는 위와 같다. 
+
+
+
+```{r}
+# application
+fit <- with(imp.mice, lm(chl ~ age + bmi))
+print(pool(fit))
+round(summary(pool(fit)),2)
+```
+
+10개를 묶어서 얻어낸 결과이다. 이때 각 변수들 p-값이 작게 나타나 적당한 유의수준에서 유의함을 알 수 있다. 또한 각 추정치들을 위에서 확인할 수 있다. 이때, 모형은 chl(수치형) 이 종속변수이고, age(범주형), bmi(수치형)이 설명변수인 선형모형을 생각결과임을 잊어서는 안된다. 
+
+
+```{r}
+fit.hyp <- with(imp.mice, glm(hyp ~ bmi + chl, family=binomial()))
+print(pool(fit.hyp))
+round(summary(pool(fit.hyp)),2)
+```
+
+위에서와는 달리, hyp(이항형)이 종속변수이고, bmi(수치형), chl(수치형)이 설명변수인 로지스틱 회귀모형을 생각해서 분석을 진행하면 위와 같은 결과를 얻어낸다. 
+
+
+```{r}
+summary.bmi <- matrix(0,10,3)
+rownames(summary.bmi) <- 1:10
+colnames(summary.bmi) <- c("25%","50%","75%")
+for (i in 1:10) {
+  x <- complete(imp.mice,i)$bmi
+  summary.bmi[i,] <- summary(x)[c(2,3,5)]
+}
+summary.bmi
+round(apply(summary.bmi,2,mean),1)
+```
+
+
+마지막으로 bmi 변수에 대한 25%, 50%, 75% 분위수를 구하고 싶을 시 위와같은 절차를 따르고 실행하면 된다.
+그 결과값 25%, 50%, 75% 는 각각 23.1 , 26.9, 29.7이다.

@@ -1,0 +1,73 @@
+---
+title: "Meta Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+####  **Library**
+
+```{r message=FALSE}
+library(meta)
+```
+
+#### 0. 코드 적어보기.
+
+```{r}
+data(Fleiss93)
+metabin(event.e, n.e, event.c, n.c, studlab=paste(study, year), sm="OR", 
+        method="inverse", data=Fleiss93)
+meta.1 <- metabin(event.e, n.e, event.c, n.c, studlab=paste(study, year), sm="OR", 
+                  method="inverse", data=Fleiss93)
+forest(meta.1, comb.fixed = FALSE, leftcols = "studlab", rightcols = FALSE)
+funnel(meta.1)
+
+data(Fleiss93cont)
+metacont(n.e, mean.e, sd.e, n.c, mean.c, sd.c, sm="SMD", data=Fleiss93cont)
+
+meta.2 <- metacont(n.e, mean.e, sd.e, n.c, mean.c, sd.c, sm="SMD", data=Fleiss93cont)
+forest(meta.2, comb.fixed=FALSE, leftcols="studlab", rightcol=FALSE)
+funnel(meta.2)
+
+```
+
+<br><br><br>
+
+#### 1. '비율 비교'의 메타 연구에서 Mantel-Haenszel방법과 Peto의 방법은 무엇인가? Fleiss93 자료에 적용하는 경우, 역분산법의 결과와 얼마나 다른가?
+
+
+Mentel-Haenszel방법과 Peto방법 모두 사건비율과 같은 이산형 자료연구에서 자주쓰이는 메타분석방법이다. 위의 두 방법의 차이는 아래와 같다. <br><br>
+
+1). Mantel-Haenszel방법 <br>
+여러개의 분할표로부터 데이터를 결합하는 방법이다. 기본은 2 X 2의 분할표의 경우에서 출발한다. 표본수가 작은 연구라 할지라도 그러한 연구의 수가 많을 때 효과적인 방법이며, Meta분석에서 고정효과방법의 기본적인 방법이다. OR, RR, RD 중 어느 효과를 쓰는지에 따라 가중치를 주는 방식이 달라진다. 특히 event 수가 적은 경우에 역분산방법보다 선호되는 방법이다.
+
+<br>
+
+2). Peto방법 <br>
+여러개의 분할표로부터 데이터를 결합하기 위한 Mantel-Haenszel 방법을 수정한 것이다. 기본은 2 X 2 의 분할표의 경우에서 출발한다. 그리고 각 연구로부터 얻은 오즈비의 추정치와 그 추정치의 표준오차를 결합하는 것으로 구해진다. event 수가 적은 연구들을 결합하는 경우, 혹은 처리군이나 대조군 중 하나에서 결과가 발생하지 않는 연구들이 있는 경우에 가장 적절한 메타분석 방법이며 계산하기가 쉽다. 그러나 두 처리집단 간 표본수에 불균형이 심한 연구들이 많으면 bias된 OR값 및 표준오차를 제공하고, OR의 참값이 큰 경우에는 과소추정한다는 단점을 가지고 있다.
+```{r}
+# 1-1. MH
+metabin(event.e, n.e, event.c, n.c, studlab=paste(study, year), sm="OR", 
+        method="MH", data=Fleiss93)
+# 1-2. Peto
+metabin(event.e, n.e, event.c, n.c, studlab=paste(study, year), sm="OR", 
+        method="Peto", data=Fleiss93)
+
+```
+위의 결과를 살펴보면 각 논문의 가중치 추정량, OR값, tau^2추정량, Q통계량 등이 미미하게 다름을 확인할 수 있다.
+
+<br><br><br>
+
+#### 2. Trim-and-Fill 방법이란 무엇인가?
+깔때기 그림의 비대칭성을 보정하여 수집된 메타자료에 내재된 출간편향을 제거한다. Trim-and-Fill방법은 다음의 절차를 따른다. <br><br> 
+(1) 비대칭을 유발하는 표본수가 작은 연구들을 제거한다. <br>
+(2) 이렇게 걸러진 연구들로 깔때기 그림의 중심을 재추정한다. <br>
+(3) 생략된 연구와 중심을 기준으로 대조되는 연구들을 대체하여 끼워넣는다. <br><br>
+
+메타분석을 위해 수집된 개별연구들은 정상적 연구들과 다를 가능성이 있으므로, 이를 배제하기위해 반드시 필요한 작업이다.
+
+
+
+
