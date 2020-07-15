@@ -1,0 +1,15 @@
+어제 올린 TensorFlow 2.x에서 GPU  memory의 adaptive한 할당 프로그램이 TensorFlow 2.2.0 version에서 작동하지 않은 것을 방금 확인했습니다.
+
+- 메모리 수정 코드 - 
+
+다음과 같이 수정하면 작동합니다.
+
+from tensorflow.compat.v1 import ConfigProto
+
+from tensorflow.compat.v1 import InteractiveSession
+
+config=ConfigProto()
+
+config.gpu_options.allow_growth=True
+
+session=InteractiveSession(config=config)
